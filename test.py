@@ -100,9 +100,6 @@ def main(args):
             full_score.extend(torch.sigmoid(score).tolist())
             full_labels.extend(labels)
 
-            # update 
-            pred_dict.update(pred_dict_update)
-
         acc = float(num_corrects) / num_samples
 
         # ROC

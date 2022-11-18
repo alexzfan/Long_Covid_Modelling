@@ -209,8 +209,8 @@ def evaluate(args, model, data_loader, device):
 
             # calc loss
             y = y.float().to(device)
-            weights = compute_class_weight(class_weight='balanced', classes = np.unique(y), y = y.numpy())
-            weights=torch.tensor(weights,dtype=torch.float)
+            weights = compute_class_weight(class_weight='balanced', classes = np.unique(y.cpu()), y = y.cpu().numpy())
+            weights=torch.tensor(weights,dtype=torch.float).to(device)
             criterion = nn.BCEWithLogitsLoss(reduction = 'none')
             
             preds, num_correct, acc = util.binary_acc(score, y.unsqueeze(1))

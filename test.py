@@ -48,7 +48,7 @@ def main(args):
 
     # get data loader
     if(args.model_type == "baseline"):
-        test_dataset = HatefulMemes(args.test_eval_file,
+        test_dataset = LongCovidDataset(args.test_eval_file,
                                     args.img_folder_rel_path,
                                     args.text_model_path)                             
         test_loader = data.DataLoader(test_dataset,

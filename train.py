@@ -235,8 +235,8 @@ def evaluate(args, model, data_loader, device):
         acc = float(num_corrects) / num_samples
 
         # ROC
-        y_score = np.asarray(full_score.cpu())
-        y = np.asarray(full_labels.cpu()).astype(int)
+        y_score = np.asarray(full_score)
+        y = np.asarray([label.cpu() for label in full_labels]).astype(int)
         print(predictions)
         auc = metrics.roc_auc_score(y, y_score)
 

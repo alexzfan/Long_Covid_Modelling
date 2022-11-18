@@ -132,7 +132,7 @@ def main(args):
 
                 # weight the BCE
                 weights = compute_class_weight(class_weight='balanced', classes= np.unique(y.cpu()), y= y.cpu().numpy())
-                weights=torch.tensor(weights,dtype=torch.float).to(DEVICE)
+                weights=torch.tensor(weights,dtype=torch.float).to(device)
                 criterion = nn.BCEWithLogitsLoss(reduction= 'none')
 
                 loss = criterion(score, y.unsqueeze(1))

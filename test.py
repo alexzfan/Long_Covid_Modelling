@@ -96,13 +96,6 @@ def main(args):
             num_corrects += num_correct
             num_samples += preds.size(0)
 
-            pred_dict_update = util.make_update_dict(
-                img_id,
-                preds,
-                score,
-                label
-            )
-
             full_preds.extend(preds)
             full_score.extend(torch.sigmoid(score).tolist())
             full_labels.extend(labels)

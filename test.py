@@ -76,7 +76,7 @@ def main(args):
         tqdm(total=len(test_dataset)) as progress_bar:
         for x, labels in test_loader:
             # forward pass here
-            x = x.to(device)
+            x = x.float().to(device)
             # text = text.to(device)
 
             batch_size = args.batch_size

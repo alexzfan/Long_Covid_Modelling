@@ -13,8 +13,8 @@ import torch.utils.data as data
 import util
 
 from args import get_test_args
-from models import Baseline_model, VisualBert_Model, VisualBert_Model_Fairface
-from util import HatefulMemes, HatefulMemesRawImages, HatefulMemesRawImagesAdditionalFeat
+from models import baseline_ff
+from util import LongCovidDataset
 from collections import OrderedDict
 from sklearn import metrics
 from tensorboardX import SummaryWriter
@@ -39,11 +39,7 @@ def main(args):
     # Get Model
     log.info("Making model....")
     if(args.model_type == "baseline"):
-        model = Baseline_model(hidden_size=args.hidden_size)
-    elif(args.model_type == "visualbert"):
-        model = VisualBert_Model(args.batch_size, args.hidden_size, device)
-    elif(args.model_type == "visualbert_fairface"):
-        model = VisualBert_Model_Fairface(args.batch_size, args.hidden_size, device)
+        model = baseline_ff(hidden_size=args.hidden_size)
     else:
         raise Exception("Model provided not valid")
 
@@ -53,22 +49,6 @@ def main(args):
     # get data loader
     if(args.model_type == "baseline"):
         test_dataset = HatefulMemes(args.test_eval_file,
-                                    args.img_folder_rel_path,
-                                    args.text_model_path)                             
-        test_loader = data.DataLoader(test_dataset,
-                                    batch_size = args.batch_size,
-                                    shuffle = True,
-                                    num_workers = args.num_workers)
-    elif(args.model_type == "visualbert"):
-        test_dataset = HatefulMemesRawImages(args.test_eval_file,
-                                    args.img_folder_rel_path,
-                                    args.text_model_path)                             
-        test_loader = data.DataLoader(test_dataset,
-                                    batch_size = args.batch_size,
-                                    shuffle = True,
-                                    num_workers = args.num_workers)
-    elif(args.model_type == "visualbert_fairface"):
-        test_dataset = HatefulMemesRawImagesAdditionalFeat(args.test_eval_file,
                                     args.img_folder_rel_path,
                                     args.text_model_path)                             
         test_loader = data.DataLoader(test_dataset,
@@ -88,7 +68,6 @@ def main(args):
     pred_dict = {} # id, prob and prediction
     full_score = []
     full_labels = []
-    full_img_id = []
     full_preds = []
 
     acc = 0
@@ -97,28 +76,22 @@ def main(args):
 
     with torch.no_grad(), \
         tqdm(total=len(test_dataset)) as progress_bar:
-        for img_id, image, text, label, add_feat in test_loader:
+        for x, labels in test_loader:
             # forward pass here
-            image = image.to(device)
+            x = x.to(device)
             # text = text.to(device)
 
             batch_size = args.batch_size
 
             if(args.model_type == "baseline"):
-                score = model(image, text, device)
-            elif(args.model_type == "visualbert"):
-                score = model(image, text, device)
-            elif(args.model_type == "visualbert_fairface"):
-                score = model(image, text, add_feat, device)
+                score = model(x)
             else:
                 raise Exception("Model Type Invalid")
 
             # calc loss
-            label = label.float().to(device)
-            preds, num_correct, acc = util.binary_acc(score, label.unsqueeze(1))
-            print(preds)
-            print(acc)
-            loss = criterion(score, label.unsqueeze(1))
+            labels = labels.float().to(device)
+            preds, num_correct, acc = util.binary_acc(score, labels.unsqueeze(1))
+            loss = criterion(score, labels.unsqueeze(1))
             nll_meter.update(loss.item(), batch_size)
 
             # get acc and auroc
@@ -132,10 +105,9 @@ def main(args):
                 label
             )
 
-            full_img_id.extend(img_id)
             full_preds.extend(preds)
             full_score.extend(torch.sigmoid(score).tolist())
-            full_labels.extend(label)
+            full_labels.extend(labels)
 
             # update 
             pred_dict.update(pred_dict_update)
@@ -147,7 +119,7 @@ def main(args):
         y = np.asarray(full_labels).astype(int)
 
         auc = metrics.roc_auc_score(y, y_score)
-        df = pd.DataFrame(list(zip(full_img_id, full_preds, full_labels)), columns =['img_id', 'preds', 'labels'])
+        df = pd.DataFrame(list(zip(full_score, full_preds, full_labels)), columns =['probs', 'preds', 'labels'])
         sub_path = join(args.save_dir, args.split + '_' + args.sub_file)
         df.to_csv(sub_path, encoding = "utf-8")
 

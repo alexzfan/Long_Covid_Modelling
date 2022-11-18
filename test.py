@@ -104,7 +104,7 @@ def main(args):
 
         # ROC
         y_score = np.asarray(full_score)
-        y = np.asarray(full_labels).astype(int)
+        y = np.asarray([label.cpu() for label in full_labels]).astype(int)
 
         auc = metrics.roc_auc_score(y, y_score)
         df = pd.DataFrame(list(zip(full_score, full_preds, full_labels)), columns =['probs', 'preds', 'labels'])

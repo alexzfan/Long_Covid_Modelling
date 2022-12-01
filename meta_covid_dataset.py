@@ -11,7 +11,7 @@ NUM_VAL_CLASSES = 100
 NUM_TEST_CLASSES = 423
 NUM_SAMPLES_PER_CLASS = 6
 
-class OmniglotDataset(dataset.Dataset):
+class LongCovidMetaDataset(dataset.Dataset):
     """Omniglot dataset for meta-learning.
 
     Each element of the dataset is a task. A task is specified with a key,

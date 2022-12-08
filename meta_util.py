@@ -51,7 +51,8 @@ class aug_net_block(nn.Module):
         in_channel,
         out_channel,
         kernel_size,
-        aug_noise_prob
+        aug_noise_prob,
+        num_augs
     ):
         """Inits the augmentation network for MetaAugNet on MAML"""
         super(aug_net_block, self).__init__()

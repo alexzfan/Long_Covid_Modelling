@@ -370,7 +370,6 @@ def main(args):
         num_input_channels,
         args.num_way,
         args.num_inner_steps,
-        args.pretrain,
         args.aug_net_size,
         args.num_augs,
         args.aug_noise_prob, 

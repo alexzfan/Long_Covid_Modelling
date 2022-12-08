@@ -151,10 +151,8 @@ class MAML:
             # does the "augmentation"
             support_augs = torch.cat([x_support for _ in range(self._num_augs)], dim = 0)
             labels_augs = torch.cat([y_support for _ in range(self._num_augs)], dim = 0)
-            print("support augs shape pre unsqueeze: {}".format(support_augs.shape))
+
             support_augs = torch.unsqueeze(support_augs, 1)
-            print("x support shape: {}".format(x_support.shape))
-            print("support augs shape: {}".format(support_augs.shape))
             support_augs = self._aug_net(support_augs)
             
             # use higher
@@ -177,7 +175,7 @@ class MAML:
                 accuracies_support_batch.append(support_accs)
 
                 # query time
-                print("x query shape: {}".format(x_query.shape))
+                x_query = torch.unsqueeze(x_query, 1)
                 qry_logits = fnet(x_query)
                 qry_loss = F.cross_entropy(qry_logits, y_query)
                 accuracy_query_batch.append(meta_util.score(qry_logits, y_query))

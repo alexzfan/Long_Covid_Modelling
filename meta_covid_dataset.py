@@ -9,7 +9,7 @@ from torch.utils.data import dataset, sampler, dataloader
 NUM_TRAIN_CLASSES = 1100
 NUM_VAL_CLASSES = 100
 NUM_TEST_CLASSES = 423
-NUM_SAMPLES_PER_CLASS = 6
+NUM_SAMPLES_PER_CLASS = 2
 
 class LongCovidMetaDataset(dataset.Dataset):
     """Omniglot dataset for meta-learning.
@@ -22,7 +22,7 @@ class LongCovidMetaDataset(dataset.Dataset):
 
     _BASE_PATH = './data'
 
-    def __init__(self, num_support, num_query):
+    def __init__(self, num_support, num_query, data_filename):
         """Inits meta_covid_dataset.
 
         Args:
@@ -36,15 +36,9 @@ class LongCovidMetaDataset(dataset.Dataset):
         if not os.path.isdir(self._BASE_PATH):
             assert("./data not available")
 
-        # get all character folders
-        self._character_folders = glob.glob(
-            os.path.join(self._BASE_PATH, '*/*/'))
-        assert len(self._character_folders) == (
-            NUM_TRAIN_CLASSES + NUM_VAL_CLASSES + NUM_TEST_CLASSES
-        )
+        self._data = pd.read_csv(os.path.join(_BASE_PATH, data_filename))
 
-        # shuffle characters
-        np.random.default_rng(0).shuffle(self._character_folders)
+        self._data.iloc[:, :-1] = normalize(self._data.iloc[:,:-1], axis = 0, norm = 'max')
 
         # check problem arguments
         assert num_support + num_query <= NUM_SAMPLES_PER_CLASS
@@ -69,37 +63,31 @@ class LongCovidMetaDataset(dataset.Dataset):
             labels_query (Tensor): task query labels
                 shape (num_way * num_query,)
         """
-        images_support, images_query = [], []
-        labels_support, labels_query = [], []
+        x_support, x_query = [], []
+        y_support, y_query = [], []
 
         for label, class_idx in enumerate(class_idxs):
             # get a class's examples and sample from them
-            all_file_paths = glob.glob(
-                os.path.join(self._character_folders[class_idx], '*.png')
-            )
-            sampled_file_paths = np.random.default_rng().choice(
-                all_file_paths,
-                size=self._num_support + self._num_query,
-                replace=False
-            )
-            images = [load_image(file_path) for file_path in sampled_file_paths]
+
+            class_sample = self._data[self._data['LongCovid'] == class_idx].sample(n = (self._num_support + self._num_query), replace = False)
+            
 
             # split sampled examples into support and query
-            images_support.extend(images[:self._num_support])
-            images_query.extend(images[self._num_support:])
-            labels_support.extend([label] * self._num_support)
-            labels_query.extend([label] * self._num_query)
+            x_support.extend(class_sample[:self._num_support, :-1])
+            x_query.extend(class_sample[self._num_support:, :-1])
+            y_support.extend([label] * self._num_support)
+            y_query.extend([label] * self._num_query)
 
         # aggregate into tensors
-        images_support = torch.stack(images_support)  # shape (N*S, C, H, W)
-        labels_support = torch.tensor(labels_support)  # shape (N*S)
-        images_query = torch.stack(images_query)
-        labels_query = torch.tensor(labels_query)
+        x_support = torch.stack(x_support)  # shape (N*S, C, H, W)
+        y_support = torch.tensor(y_support)  # shape (N*S)
+        x_query = torch.stack(x_query)
+        y_query = torch.tensor(y_query)
 
-        return images_support, labels_support, images_query, labels_query
+        return x_support, y_support, x_query, y_query
 
 
-class OmniglotSampler(sampler.Sampler):
+class LongCovidSampler(sampler.Sampler):
     """Samples task specification keys for an OmniglotDataset."""
 
     def __init__(self, split_idxs, num_way, num_tasks):
@@ -112,7 +100,7 @@ class OmniglotSampler(sampler.Sampler):
             num_tasks (int): number of tasks to sample
         """
         super().__init__(None)
-        self._split_idxs = split_idxs
+        self._split_idxs = [0,1]
         self._num_way = num_way
         self._num_tasks = num_tasks
 
@@ -133,7 +121,7 @@ def identity(x):
     return x
 
 
-def get_omniglot_dataloader(
+def get_longcov_dataloader(
         split,
         batch_size,
         num_way,
@@ -154,24 +142,18 @@ def get_omniglot_dataloader(
     """
 
     if split == 'train':
-        split_idxs = range(NUM_TRAIN_CLASSES)
+        data_filename = "proteins_longcovid_target_metatrain.csv"
     elif split == 'val':
-        split_idxs = range(
-            NUM_TRAIN_CLASSES,
-            NUM_TRAIN_CLASSES + NUM_VAL_CLASSES
-        )
+        data_filename = "proteins_longcovid_target_metaval.csv"
     elif split == 'test':
-        split_idxs = range(
-            NUM_TRAIN_CLASSES + NUM_VAL_CLASSES,
-            NUM_TRAIN_CLASSES + NUM_VAL_CLASSES + NUM_TEST_CLASSES
-        )
+        data_filename = "proteins_longcovid_target_test.csv"
     else:
         raise ValueError
 
     return dataloader.DataLoader(
-        dataset=OmniglotDataset(num_support, num_query),
+        dataset=LongCovidMetaDataset(num_support, num_query, data_filename),
         batch_size=batch_size,
-        sampler=OmniglotSampler(split_idxs, num_way, num_tasks_per_epoch),
+        sampler=LongCovidSampler(num_way, num_tasks_per_epoch),
         num_workers=8,
         collate_fn=identity,
         pin_memory=torch.cuda.is_available(),

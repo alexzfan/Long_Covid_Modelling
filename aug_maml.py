@@ -9,12 +9,10 @@ from torch import nn
 import torch.nn.functional as F
 from torch import autograd
 from torch.utils import tensorboard
-from torchvision.models import squeezenet1_1, SqueezeNet1_1_Weights
 import higher
 
-import omniglot
-import imagenet_tiny as imagenet
-import util
+import meta_covid_dataset
+import meta_util
 import sys
 import random
 
@@ -39,9 +37,9 @@ class MAML:
             num_input_channels,
             num_outputs,
             num_inner_steps,
-            pretrain,
             aug_net_size,
             num_augs,
+            aug_noise_prob,
             inner_lr,
             learn_inner_lrs,
             outer_lr,
@@ -76,63 +74,39 @@ class MAML:
 
         # construct feature extractor
         self._aug_net_size = aug_net_size
-        
+        self._num_augs = num_augs
+
         self._aug_net = nn.Sequential()
         in_channel = self.num_input_channels
         for i in range(self._aug_net_size):
             if i == self._aug_net_size - 1:
-                self._aug_net.append(util.aug_net_block(in_channel, self.num_input_channels, KERNEL_SIZE))
+                self._aug_net.append(meta_util.aug_net_block(in_channel, self.num_input_channels, KERNEL_SIZE))
             else:
-                self._aug_net.append(util.aug_net_block(in_channel, NUM_HIDDEN_CHANNELS, KERNEL_SIZE))
+                self._aug_net.append(meta_util.aug_net_block(in_channel, NUM_HIDDEN_CHANNELS, KERNEL_SIZE))
                 in_channel = NUM_HIDDEN_CHANNELS
         self._aug_net = self._aug_net.to(DEVICE)
 
 
         # make inner model
-        self.pretrain = pretrain
-        if self.pretrain:
-            self.pretrain_model =nn.Sequential(*list(squeezenet1_1(weights=SqueezeNet1_1_Weights.IMAGENET1K_V1).children())[:-1]).to(DEVICE)
-            for param in self.pretrain_model.parameters():
-                param.requires_grad = False
-            inner_params = {}
-            inner_params[f'w{INNER_MODEL_SIZE}'] = nn.init.xavier_uniform_(
-                torch.empty(
-                    num_outputs,
-                    NUM_HIDDEN_CHANNELS, # figure out shape of this 
-                    requires_grad=True,
-                    device=DEVICE
-                )
-            )
-            inner_params[f'b{INNER_MODEL_SIZE}'] = nn.init.zeros_(
-                torch.empty(
-                    num_outputs,
-                    requires_grad=True,
-                    device=DEVICE
-                )
-            )
-        else:
-            self._inner_net = nn.Sequential(
-                nn.Conv2d(self.num_input_channels, 64, 3),
-                nn.BatchNorm2d(64, momentum=1, affine=True),
-                nn.ReLU(inplace=True),
-                nn.MaxPool2d(2, 2),
-                nn.Conv2d(64, 64, 3),
-                nn.BatchNorm2d(64, momentum=1, affine=True),
-                nn.ReLU(inplace=True),
-                nn.MaxPool2d(2, 2),
-                nn.Conv2d(64, 64, 3),
-                nn.BatchNorm2d(64, momentum=1, affine=True),
-                nn.ReLU(inplace=True),
-                util.mean_pool_along_channel(),
-                nn.Linear(64, num_outputs)
-            ).to(DEVICE)
+
+        self._inner_net = nn.Sequential(
+            nn.Conv1d(self.num_input_channels, 64, 3),
+            nn.BatchNorm1d(64, momentum=1, affine=True),
+            nn.ReLU(inplace=True),
+            nn.MaxPool1d(2),
+            nn.Conv1d(64, 64, 3),
+            nn.BatchNorm1d(64, momentum=1, affine=True),
+            nn.ReLU(inplace=True),
+            nn.MaxPool1d(2),
+            nn.Conv1d(64, 64, 3),
+            nn.BatchNorm1d(64, momentum=1, affine=True),
+            nn.ReLU(inplace=True),
+            meta_util.mean_pool_along_channel(),
+            nn.Linear(64, num_outputs)
+        ).to(DEVICE)
             
         self._num_inner_steps = num_inner_steps
-        self._num_augs = num_augs
-        # self._inner_lrs = {
-        #     k: torch.tensor(inner_lr, requires_grad=learn_inner_lrs)
-        #     for k in self._inner_params.keys()
-        # }
+
         
         self._outer_lr = outer_lr
         self._optimizer = torch.optim.Adam(
@@ -147,48 +121,6 @@ class MAML:
 
         self._start_train_step = 0
 
-
-    def _inner_loop(self, images, labels, train):
-        """Computes the adapted network parameters via the MAML inner loop.
-
-        Args:
-            images (Tensor): task support set inputs
-                shape (num_images, channels, height, width)
-            labels (Tensor): task support set outputs
-                shape (num_images,)
-            train (bool): whether we are training or evaluating
-
-        Returns:
-            parameters (dict[str, Tensor]): adapted network parameters
-            accuracies (list[float]): support set accuracy over the course of
-                the inner loop, length num_inner_steps + 1
-        """
-        accuracies = []
-        inner_parameters = {
-            k: torch.clone(v)
-            for k, v in self._inner_params.items()
-        } 
-
-        for i in range(self._num_inner_steps):
-            # run resnet on the convnet output
-
-            out = self._inner_forward(images, inner_parameters)
-
-            # get the loss from resnet output
-            loss = F.cross_entropy(out, labels)
-            accuracies.append(util.score(out, labels))
-
-            d_loss = autograd.grad(outputs = loss, 
-                                    inputs = inner_parameters.values(), 
-                                    create_graph = train)
-            for i, k in enumerate(inner_parameters.keys()):
-                inner_parameters[k] = inner_parameters[k] - self._inner_lrs[k]*d_loss[i]
-
-        # last run on the fully adapted params
-        out = self._inner_forward(images, inner_parameters)
-        accuracies.append(util.score(out, labels))
-
-        return inner_parameters, accuracies
 
     def _outer_step(self, task_batch, train):
         """Computes the MAML loss and metrics on a batch of tasks.
@@ -209,53 +141,50 @@ class MAML:
         accuracies_support_batch = []
         accuracy_query_batch = []
         for task in task_batch:
-            images_support, labels_support, images_query, labels_query = task
-            images_support = images_support.to(DEVICE)
-            labels_support = labels_support.to(DEVICE)
-            images_query = images_query.to(DEVICE)
-            labels_query = labels_query.to(DEVICE)
+            x_support, y_support, x_query, y_query = task
+            x_support = x_support.to(DEVICE)
+            y_support = y_support.to(DEVICE)
+            x_query = x_query.to(DEVICE)
+            y_query = y_query.to(DEVICE)
 
             # does the "augmentation"
-            support_augs = []
-            labels_temp = []
-            for _ in range(self._num_augs):
-                support_augs.append(self._aug_net(images_support))
-                labels_temp.append(labels_support)
-
-
-            support_augs = torch.cat(support_augs, dim = 0)
-            labels_temp = torch.cat(labels_temp, dim = 0)
-
+            support_augs = torch.cat([x_support for _ in range(self._num_augs)], dim = 0)
+            labels_augs = torch.cat([y_support for _ in range(self._num_augs)], dim = 0)
+            
+            support_augs = torch.unsqueeze(support_augs, 1)
+            support_augs = self._aug_net(support_augs)
+            
             # use higher
             inner_opt = torch.optim.SGD(self._inner_net.parameters(), lr=1e-1)
 
             with higher.innerloop_ctx(
-                self._inner_net, inner_opt, copy_initial_weights=False
+                self._inner_net, inner_opt, copy_initial_weights=not train, track_higher_grads=train
             ) as (fnet, diffopt):
 
                 # adapt in inner loop
                 support_accs = []
                 for _ in range(self._num_inner_steps):
                         spt_logits = fnet(support_augs)
-                        spt_loss = F.cross_entropy(spt_logits, labels_temp)
+                        spt_loss = F.cross_entropy(spt_logits, labels_augs)
 
-                        support_accs.append(util.score(spt_logits, labels_temp))
+                        support_accs.append(meta_util.score(spt_logits, labels_augs))
                         diffopt.step(spt_loss)
                 spt_logits = fnet(support_augs)
-                support_accs.append(util.score(spt_logits, labels_temp))
+                support_accs.append(meta_util.score(spt_logits, labels_augs))
                 accuracies_support_batch.append(support_accs)
 
                 # query time
-                qry_logits = fnet(images_query)
-                qry_loss = F.cross_entropy(qry_logits, labels_query)
-                accuracy_query_batch.append(util.score(qry_logits, labels_query))
+                qry_logits = fnet(x_query)
+                qry_loss = F.cross_entropy(qry_logits, y_query)
+                accuracy_query_batch.append(meta_util.score(qry_logits, y_query))
+
+                if train:
+                    qry_loss.backward()
+
                 outer_loss_batch.append(qry_loss.detach())
 
-                qry_loss.backward()
+                
 
-            # ********************************************************
-            # ******************* YOUR CODE HERE *********************
-            # ********************************************************
         outer_loss = torch.mean(torch.stack(outer_loss_batch))
         accuracies_support = np.mean(
             accuracies_support_batch,
@@ -402,8 +331,8 @@ class MAML:
         )
         if os.path.isfile(target_path):
             state = torch.load(target_path)
-            self._meta_parameters = state['meta_parameters']
-            self._inner_lrs = state['inner_lrs']
+            self._aug_net.load_state_dict(state['aug_net'])
+            self._inner_net.load_state_dict(state['inner_net'])
             self._optimizer.load_state_dict(state['optimizer_state_dict'])
             self._start_train_step = checkpoint_step + 1
             print(f'Loaded checkpoint iteration {checkpoint_step}.')
@@ -420,7 +349,9 @@ class MAML:
         """
         optimizer_state_dict = self._optimizer.state_dict()
         torch.save(
-            dict(optimizer_state_dict=optimizer_state_dict),
+            dict(aug_net = self._aug_net.state_dict(),
+                inner_net = self._inner_net.state_dict(),
+                optimizer_state_dict=optimizer_state_dict),
             f'{os.path.join(self._log_dir, "state")}{checkpoint_step}.pt'
         )
         print('Saved checkpoint.')
@@ -429,14 +360,12 @@ class MAML:
 def main(args):
     log_dir = args.log_dir
     if log_dir is None:
-        log_dir = f'./logs/maml/{args.dataset}.way:{args.num_way}.support:{args.num_support}.query:{args.num_query}.inner_steps:{args.num_inner_steps}.inner_lr:{args.inner_lr}.learn_inner_lrs:{args.learn_inner_lrs}.outer_lr:{args.outer_lr}.batch_size:{args.batch_size}'  # pylint: disable=line-too-long
+        log_dir = f'./logs/maml/meta_covid.way:{args.num_way}.support:{args.num_support}.query:{args.num_query}.inner_steps:{args.num_inner_steps}.inner_lr:{args.inner_lr}.learn_inner_lrs:{args.learn_inner_lrs}.outer_lr:{args.outer_lr}.batch_size:{args.batch_size}'  # pylint: disable=line-too-long
     print(f'log_dir: {log_dir}')
     writer = tensorboard.SummaryWriter(log_dir=log_dir)
 
-    if args.dataset == 'omniglot':
-        num_input_channels = 1
-    else:
-        num_input_channels = 3
+    num_input_channels = 1
+
     maml = MAML(
         num_input_channels,
         args.num_way,
@@ -444,6 +373,7 @@ def main(args):
         args.pretrain,
         args.aug_net_size,
         args.num_augs,
+        args.aug_noise_prob, 
         args.inner_lr,
         args.learn_inner_lrs,
         args.outer_lr,
@@ -467,23 +397,23 @@ def main(args):
             f'num_query={args.num_query}, '
             f'num_augs={args.num_augs}'
         )
-        if args.dataset == "omniglot":
-            dataloader_train = omniglot.get_omniglot_dataloader(
-                'train',
-                args.batch_size,
-                args.num_way,
-                args.num_support,
-                args.num_query,
-                num_training_tasks
-            )
-            dataloader_val = omniglot.get_omniglot_dataloader(
-                'val',
-                args.batch_size,
-                args.num_way,
-                args.num_support,
-                args.num_query,
-                args.batch_size * 4
-            )
+
+        dataloader_train = meta_covid_dataset.get_longcov_dataloader(
+            'train',
+            args.batch_size,
+            args.num_way,
+            args.num_support,
+            args.num_query,
+            num_training_tasks
+        )
+        dataloader_val = meta_covid_dataset.get_longcov_dataloader(
+            'val',
+            args.batch_size,
+            args.num_way,
+            args.num_support,
+            args.num_query,
+            args.batch_size * 4
+        )
 
         maml.train(
             dataloader_train,
@@ -497,7 +427,7 @@ def main(args):
             f'num_support={args.num_support}, '
             f'num_query={args.num_query}'
         )
-        dataloader_test = omniglot.get_omniglot_dataloader(
+        dataloader_test = meta_covid_dataset.get_longcov_dataloader(
             'test',
             1,
             args.num_way,
@@ -520,14 +450,12 @@ if __name__ == '__main__':
                         help='number of query examples per class in a task')
     parser.add_argument('--num_inner_steps', type=int, default=1,
                         help='number of inner-loop updates')
-    parser.add_argument("--dataset", type = str, default="omniglot",
-                        choices = ['omniglot', 'imagenet'])
-    parser.add_argument('--pretrain', type=bool, default=False,
-                        help='whether to use pretrain model as inner loop')  
     parser.add_argument('--aug_net_size', type=int, default=1,
                         help='how many conv layers in augmentation network')       
     parser.add_argument('--num_augs', type=int, default=1,
-                        help='how many sets of augmentations')                       
+                        help='how many sets of augmentations')    
+    parser.add_argument('--aug_noise_prob', type=float, default=0.1,
+                        help='likelihood to inject noise in augmentation layer')                     
     parser.add_argument('--inner_lr', type=float, default=0.4,
                         help='inner-loop learning rate initialization')
     parser.add_argument('--learn_inner_lrs', default=False, action='store_true',

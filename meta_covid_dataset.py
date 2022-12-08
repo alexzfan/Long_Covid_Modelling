@@ -91,7 +91,7 @@ class LongCovidMetaDataset(dataset.Dataset):
 class LongCovidSampler(sampler.Sampler):
     """Samples task specification keys for an OmniglotDataset."""
 
-    def __init__(self, split_idxs, num_way, num_tasks):
+    def __init__(self, num_way, num_tasks):
         """Inits OmniglotSampler.
 
         Args:

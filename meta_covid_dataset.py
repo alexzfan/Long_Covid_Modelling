@@ -71,11 +71,13 @@ class LongCovidMetaDataset(dataset.Dataset):
             # get a class's examples and sample from them
 
             class_sample = self._data[self._data['LongCovid'] == class_idx]
-            
+            print(class_sample)
             if class_idx == 1:
                 class_sample = class_sample.sample(n = (self._num_support + self._num_query), replace = False)
             else:
                 class_sample = class_sample.sample(n = (self._num_support + self._num_query), replace = True)
+            
+            print(class_sample)
             # split sampled examples into support and query
             x_support.extend(class_sample[:self._num_support, :-1])
             x_query.extend(class_sample[self._num_support:, :-1])

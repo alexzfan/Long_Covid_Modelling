@@ -75,7 +75,7 @@ class LongCovidMetaDataset(dataset.Dataset):
             if class_idx == 1:
                 class_sample = class_sample.sample(n = (self._num_support + self._num_query), replace = False)
             else:
-                class_sample = class_sample.sample(n = (self._num_support + self._num_query), replace = True)
+                class_sample = class_sample.sample(n = (self._num_support + self._num_query), replace = False)
             
             class_sample = torch.tensor(class_sample.to_numpy(), dtype = torch.float32)
             # split sampled examples into support and query

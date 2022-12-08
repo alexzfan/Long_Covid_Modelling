@@ -37,9 +37,9 @@ class LongCovidMetaDataset(dataset.Dataset):
         if not os.path.isdir(self._BASE_PATH):
             assert("./data not available")
 
-        self._data = pd.read_csv(os.path.join(_BASE_PATH, data_filename))
+        self._data = pd.read_csv(os.path.join(self._BASE_PATH, data_filename))
 
-        self._data.iloc[:, :-1] = normalize(self._data.iloc[:,:-1], axis = 0, norm = 'max')
+        self._data.iloc[:, :-1] = normalize(self._data.iloc[:,:-1], axis = 0, norm = 'l2')
 
         # check problem arguments
         assert num_support + num_query <= NUM_SAMPLES_PER_CLASS

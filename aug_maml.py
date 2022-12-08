@@ -74,15 +74,16 @@ class MAML:
 
         # construct feature extractor
         self._aug_net_size = aug_net_size
+        self._aug_noise_prob = aug_noise_prob
         self._num_augs = num_augs
 
         self._aug_net = nn.Sequential()
         in_channel = self.num_input_channels
         for i in range(self._aug_net_size):
             if i == self._aug_net_size - 1:
-                self._aug_net.append(meta_util.aug_net_block(in_channel, self.num_input_channels, KERNEL_SIZE))
+                self._aug_net.append(meta_util.aug_net_block(in_channel, self.num_input_channels, KERNEL_SIZE, self._aug_noise_prob))
             else:
-                self._aug_net.append(meta_util.aug_net_block(in_channel, NUM_HIDDEN_CHANNELS, KERNEL_SIZE))
+                self._aug_net.append(meta_util.aug_net_block(in_channel, NUM_HIDDEN_CHANNELS, KERNEL_SIZE, self._aug_noise_prob))
                 in_channel = NUM_HIDDEN_CHANNELS
         self._aug_net = self._aug_net.to(DEVICE)
 

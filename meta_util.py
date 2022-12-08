@@ -124,7 +124,7 @@ class mean_pool_along_channel(nn.Module):
         super(mean_pool_along_channel, self).__init__()
 
     def forward(self, x):
-        assert len(x.shape) == 4
+        assert len(x.shape) == 3
         return torch.mean(x, dim = [2])
 
 

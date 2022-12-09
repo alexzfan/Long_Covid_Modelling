@@ -90,9 +90,7 @@ class aug_net_block(nn.Module):
         x = F.linear(
             input = x,
             weight = self.lin_param,
-            bias = self.lin_bias,
-            stride = 1,
-            padding = 'same'
+            bias = self.lin_bias
         )
         B, L = x.size()
         tB = int(B / self.num_augs)

@@ -52,7 +52,7 @@ class LongCovidMetaDataset(dataset.Dataset):
             # do pca
             self.pca = PCA()  
             self.X = pd.DataFrame(self.pca.fit_transform(self._data.iloc[:,:-1]))
-            self._data = pd.concat(self.X, self._data.iloc[:, -1])
+            self._data = pd.concat([self.X, self._data.iloc[:, -1]], axis = 1)
             
 
             # scale
@@ -72,7 +72,7 @@ class LongCovidMetaDataset(dataset.Dataset):
 
             self.pca = load(os.path.join(self._BASE_PATH, "pca.joblib"))
             self.X = pd.DataFrame(self.pca.transform(self._data.iloc[:, :-1]))
-            self._data = pd.concat(self.X, self._data.iloc[:, -1])
+            self._data = pd.concat([self.X, self._data.iloc[:, -1]], axis = 1)
 
             self.scaler = load(os.path.join(self._BASE_PATH, "minmax.joblib"))
             self._data.iloc[:, :-1] = self.scaler.transform(self._data.iloc[:, :-1])

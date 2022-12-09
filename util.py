@@ -64,6 +64,76 @@ class LongCovidDataset(data.Dataset):
 
         return len(self.data)
 
+class LongCovidPCADataset(data.Dataset):
+    """
+    preprocess long covid dataset
+    """
+    def __init__(
+        self,
+        csv_path,
+        balance=False,
+    ):
+        self.data = pd.read_csv(csv_path)
+
+        if data_filename == "proteins_longcovid_target_metatrain.csv": 
+            if os.path.exists(os.path.join(self._BASE_PATH, "pca_non_meta.joblib")):
+                os.remove(os.path.join(self._BASE_PATH, "pca_non_meta.joblib"))
+
+            if os.path.exists(os.path.join(self._BASE_PATH, "minmax_non_meta.joblib")):
+                os.remove(os.path.join(self._BASE_PATH, "minmax_non_meta.joblib"))
+            
+            # do pca
+            self.pca = PCA(38)  
+            self.X = pd.DataFrame(self.pca.fit_transform(self._data.iloc[:,:-1]))
+            self._data = pd.concat([self.X, self._data.iloc[:, -1]], axis = 1)
+            
+
+            # scale
+            self.scaler = MinMaxScaler()
+            self._data.iloc[:, :-1] = self.scaler.fit_transform(self._data.iloc[:, :-1])
+
+            # save all the params
+            dump(self.pca, os.path.join(self._BASE_PATH, "pca_non_meta.joblib"))
+            dump(self.scaler, os.path.join(self._BASE_PATH, "minmax_non_meta.joblib"))
+        else:
+            # val/test data
+            if not os.path.exists(os.path.join(self._BASE_PATH, "pca_non_meta.joblib")):
+                raise Exception("No PCA joblib")
+
+            if not os.path.exists(os.path.join(self._BASE_PATH, "minmax_non_meta.joblib")):
+                raise Exception("No minmax joblib")
+
+            self.pca = load(os.path.join(self._BASE_PATH, "pca_non_meta.joblib"))
+            self.X = pd.DataFrame(self.pca.transform(self._data.iloc[:, :-1]))
+            self._data = pd.concat([self.X, self._data.iloc[:, -1]], axis = 1)
+
+            self.scaler = load(os.path.join(self._BASE_PATH, "minmax_non_meta.joblib"))
+            self._data.iloc[:, :-1] = self.scaler.transform(self._data.iloc[:, :-1])
+            
+        self.X = self.data.reset_index(drop = True).to_numpy()[:,:-1]
+        self.y = self.data.reset_index(drop = True).to_numpy()[:,-1]
+
+    def __getitem__(self, index):
+
+        # text
+        x = self.X[index,]
+        
+        # label 
+        y = self.y[index]
+
+        example = (
+            x,
+            y
+        )
+
+        return example
+
+
+    def __len__(self):
+
+        return len(self.data)
+
+
 class AverageMeter:
     """Keep track of average values over time.
 

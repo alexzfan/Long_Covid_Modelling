@@ -78,7 +78,7 @@ class MAML:
         self._aug_noise_prob = aug_noise_prob
         self._num_augs = num_augs
 
-        self._aug_net = nn.Sequential()
+        self._aug_net = nn.ModuleList()
         in_channel = self.num_input_channels
         for i in range(self._aug_net_size):
             if i == self._aug_net_size - 1:
@@ -150,7 +150,14 @@ class MAML:
             support_augs = torch.cat([x_support for _ in range(self._num_augs)], dim = 0)
             labels_augs = torch.cat([y_support for _ in range(self._num_augs)], dim = 0)
 
-            support_augs = self._aug_net(support_augs)
+            for i, block in enumerate(self._aug_net):
+                if i == 0 or i == (len(self._aug_net)-1):
+                    support_augs = block(support_augs)
+                else:
+                    if random.uniform(0,1) < self._aug_noise_prob:
+                        continue
+                    else:
+                        support_augs = block(support_augs)
             
             # use higher
             inner_opt = torch.optim.SGD(self._inner_net.parameters(), lr=1e-1)

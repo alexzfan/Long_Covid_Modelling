@@ -18,7 +18,9 @@ import numpy as np
 import pandas as pd
 import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import normalize
+from sklearn.preprocessing import normalize, MinMaxScaler
+from sklearn.decomposition import PCA
+from joblib import dump, load
 
 from collections import Counter
 

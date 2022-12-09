@@ -68,6 +68,7 @@ class LongCovidPCADataset(data.Dataset):
     """
     preprocess long covid dataset
     """
+    _BASE_PATH = "./data"
     def __init__(
         self,
         csv_path,
@@ -75,7 +76,7 @@ class LongCovidPCADataset(data.Dataset):
     ):
         self.data = pd.read_csv(csv_path)
 
-        if data_filename == "proteins_longcovid_target_metatrain.csv": 
+        if csv_path == "proteins_longcovid_target_metatrain.csv": 
             if os.path.exists(os.path.join(self._BASE_PATH, "pca_non_meta.joblib")):
                 os.remove(os.path.join(self._BASE_PATH, "pca_non_meta.joblib"))
 
@@ -109,7 +110,7 @@ class LongCovidPCADataset(data.Dataset):
 
             self.scaler = load(os.path.join(self._BASE_PATH, "minmax_non_meta.joblib"))
             self._data.iloc[:, :-1] = self.scaler.transform(self._data.iloc[:, :-1])
-            
+
         self.X = self.data.reset_index(drop = True).to_numpy()[:,:-1]
         self.y = self.data.reset_index(drop = True).to_numpy()[:,-1]
 

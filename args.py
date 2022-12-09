@@ -79,6 +79,12 @@ def add_common_args(parser):
     parser.add_argument('--train_eval_file',
                         type=str,
                         default='./data/proteins_longcovid_target_train.csv')
+    parser.add_argument('--train_explicit_eval_file',
+                        type=str,
+                        default='./data/proteins_longcovid_target_metatrain.csv')
+    parser.add_argument('--val_explicit_eval_file',
+                        type=str,
+                        default='./data/proteins_longcovid_target_metaval.csv')
     parser.add_argument('--test_eval_file',
                         type=str,
                         default='./data/proteins_longcovid_target_test.csv')

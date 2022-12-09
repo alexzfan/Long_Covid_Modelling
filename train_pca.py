@@ -14,8 +14,8 @@ from torch.utils.data.sampler import SubsetRandomSampler
 import util
 
 from args import get_train_args
-from models import baseline_ff
-from util import LongCovidDataset
+from models import ff_pca
+from util import LongCovidPCADataset
 from collections import OrderedDict
 from sklearn import metrics
 from tensorboardX import SummaryWriter
@@ -48,7 +48,7 @@ def main(args):
     # Get Model
     log.info("Making model....")
     if(args.model_type == "baseline"):
-        model = baseline_ff(hidden_size=args.hidden_size)
+        model = ff_pca(hidden_size=args.hidden_size)
     else:
         raise Exception("Model provided not valid")
 
@@ -84,25 +84,18 @@ def main(args):
     # load in data
     log.info("Building dataset....")
     if(args.model_type == "baseline"):
-        dataset = LongCovidDataset(args.train_eval_file)
-
-        # split the dataset to train and val
-        dataset_size = len(dataset)
-        indices = list(range(dataset_size))
-        split = int(np.floor(0.2 * dataset_size))
-        if args.shuffle_dataset:
-            np.random.seed(args.seed)
-            np.random.shuffle(indices)
-        train_indices, val_indices = indices[split:], indices[:split]
-
-        # Creating PT data samplers and loaders:
-        train_sampler = SubsetRandomSampler(train_indices)
-        valid_sampler = SubsetRandomSampler(val_indices)
-
-        train_loader = data.DataLoader(dataset, batch_size=args.batch_size, 
-                                                sampler=train_sampler)
-        dev_loader = data.DataLoader(dataset, batch_size=args.batch_size,
-                                                        sampler=valid_sampler)
+        train_dataset = LongCovidPCADataset(args.train_eval_file)
+        train_loader = data.DataLoader(train_dataset,
+                                    batch_size=args.batch_size,
+                                    shuffle=True,
+                                    num_workers=args.num_workers,
+                                    collate_fn=collate_fn)
+        dev_dataset = LongCovidPCADataset(args.dev_eval_file)
+        dev_loader = data.DataLoader(dev_dataset,
+                                    batch_size=args.batch_size,
+                                    shuffle=False,
+                                    num_workers=args.num_workers,
+                                    collate_fn=collate_fn)
     else:
         raise Exception("Dataset provided not valid")
     # Start training

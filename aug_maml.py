@@ -16,7 +16,8 @@ import meta_util
 import sys
 import random
 
-NUM_HIDDEN_CHANNELS = 64
+AUG_NET_DIM = 30000
+INNER_NET_DIM = 500
 KERNEL_SIZE = 3
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 SUMMARY_INTERVAL = 10
@@ -81,29 +82,26 @@ class MAML:
         in_channel = self.num_input_channels
         for i in range(self._aug_net_size):
             if i == self._aug_net_size - 1:
-                self._aug_net.append(meta_util.aug_net_block(in_channel, self.num_input_channels, KERNEL_SIZE, self._aug_noise_prob, self._num_augs))
+                self._aug_net.append(meta_util.aug_net_block(in_channel, self.num_input_channels, self._aug_noise_prob, self._num_augs))
             else:
-                self._aug_net.append(meta_util.aug_net_block(in_channel, NUM_HIDDEN_CHANNELS, KERNEL_SIZE, self._aug_noise_prob, self._num_augs))
-                in_channel = NUM_HIDDEN_CHANNELS
+                self._aug_net.append(meta_util.aug_net_block(in_channel, AUG_NET_DIM, self._aug_noise_prob, self._num_augs))
+                in_channel = AUG_NET_DIM
         self._aug_net = self._aug_net.to(DEVICE)
 
 
         # make inner model
 
         self._inner_net = nn.Sequential(
-            nn.Conv1d(self.num_input_channels, 64, 3),
-            nn.BatchNorm1d(64, momentum=1, affine=True),
+            nn.Linear(self.num_input_channels, INNER_NET_DIM),
+            nn.Dropout(0.5),
             nn.ReLU(inplace=True),
-            nn.MaxPool1d(2),
-            nn.Conv1d(64, 64, 3),
-            nn.BatchNorm1d(64, momentum=1, affine=True),
+            nn.Linear(INNER_NET_DIM, INNER_NET_DIM),
+            nn.Dropout(0.5),
             nn.ReLU(inplace=True),
-            nn.MaxPool1d(2),
-            nn.Conv1d(64, 64, 3),
-            nn.BatchNorm1d(64, momentum=1, affine=True),
+            nn.Linear(INNER_NET_DIM, INNER_NET_DIM),
+            nn.Dropout(0.5),
             nn.ReLU(inplace=True),
-            meta_util.mean_pool_along_channel(),
-            nn.Linear(64, num_outputs)
+            nn.Linear(INNER_NET_DIM, num_outputs)
         ).to(DEVICE)
             
         self._num_inner_steps = num_inner_steps
@@ -366,7 +364,7 @@ def main(args):
     print(f'log_dir: {log_dir}')
     writer = tensorboard.SummaryWriter(log_dir=log_dir)
 
-    num_input_channels = 1
+    num_input_channels = 23074
 
     maml = MAML(
         num_input_channels,

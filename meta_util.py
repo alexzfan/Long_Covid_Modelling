@@ -50,36 +50,33 @@ class aug_net_block(nn.Module):
         self,
         in_channel,
         out_channel,
-        kernel_size,
         aug_noise_prob,
         num_augs
     ):
         """Inits the augmentation network for MetaAugNet on MAML"""
         super(aug_net_block, self).__init__()
 
-        self.conv_param = nn.Parameter(nn.init.normal_(
+        self.lin_param = nn.Parameter(nn.init.normal_(
                     torch.empty(
                         out_channel,
                         in_channel,
-                        kernel_size,
                         requires_grad=True,
                         device = DEVICE
                     ),
                     mean =0,# 0.000001
                     std = 1e-8
                 ))
-        self.conv_bias = nn.Parameter(nn.init.zeros_(
+        self.lin_bias = nn.Parameter(nn.init.zeros_(
                     torch.empty(
                         out_channel,
                         requires_grad=True,
                         device = DEVICE
                     )
                 ))
-        self.conv_identity_weight = nn.init.dirac_(
+        self.lin_identity_weight = nn.init.eye_(
             torch.empty(
                 out_channel, 
                 in_channel, 
-                kernel_size, 
                 requires_grad = False,
                 device = DEVICE
                 )
@@ -90,23 +87,23 @@ class aug_net_block(nn.Module):
 
     def forward(self, x):
         """x: input image (N*S, C, H, W)"""
-        res =  F.conv1d(input = x, weight = self.conv_identity_weight, bias = None, padding = 'same', stride = 1)
-        x = F.conv1d(
+        res =  F.linear(input = x, weight = self.conv_identity_weight, bias = None)
+        x = F.linear(
             input = x,
-            weight = self.conv_param,
-            bias = self.conv_bias,
+            weight = self.lin_param,
+            bias = self.lin_bias,
             stride = 1,
             padding = 'same'
         )
-        B, C, L = x.size()
+        B, L = x.size()
         tB = int(B / self.num_augs)
         # new way of generating augs
-        noise = torch.cat([nn.init.normal_(torch.empty((tB, C, L), 
+        noise = torch.cat([nn.init.normal_(torch.empty((tB, L), 
                                              requires_grad = False, 
                                              device = DEVICE), 
                                  mean = 0, 
                                  std = 0.1*torch.std(x.detach()).item()
-                                ) if random.uniform(0,1) < self.aug_noise_prob else nn.init.zeros_(torch.empty((tB, C, L), 
+                                ) if random.uniform(0,1) < self.aug_noise_prob else nn.init.zeros_(torch.empty((tB, L), 
                                              requires_grad = False, 
                                              device = DEVICE)
                                 ) for _ in range(self.num_augs)
@@ -115,7 +112,7 @@ class aug_net_block(nn.Module):
                 )
         assert noise.size() == x.size()
         x = x + noise
-        x = F.layer_norm(x, x.shape[1:])
+        x = F.dropout(x, 0.4)
         x = torch.clamp(x, min=0)
         return x + res
 

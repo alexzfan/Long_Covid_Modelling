@@ -76,7 +76,7 @@ class LongCovidPCADataset(data.Dataset):
     ):
         self.data = pd.read_csv(csv_path)
 
-        if csv_path == "proteins_longcovid_target_metatrain.csv": 
+        if csv_path == "./data/proteins_longcovid_target_metatrain.csv": 
             if os.path.exists(os.path.join(self._BASE_PATH, "pca_non_meta.joblib")):
                 os.remove(os.path.join(self._BASE_PATH, "pca_non_meta.joblib"))
 

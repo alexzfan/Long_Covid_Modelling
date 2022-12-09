@@ -84,13 +84,13 @@ def main(args):
     # load in data
     log.info("Building dataset....")
     if(args.model_type == "baseline"):
-        train_dataset = LongCovidPCADataset(args.train_eval_file)
+        train_dataset = LongCovidPCADataset(args.train_explicit_eval_file)
         train_loader = data.DataLoader(train_dataset,
                                     batch_size=args.batch_size,
                                     shuffle=True,
                                     num_workers=args.num_workers,
                                     collate_fn=collate_fn)
-        dev_dataset = LongCovidPCADataset(args.dev_eval_file)
+        dev_dataset = LongCovidPCADataset(args.val_explicit_eval_file)
         dev_loader = data.DataLoader(dev_dataset,
                                     batch_size=args.batch_size,
                                     shuffle=False,

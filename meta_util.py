@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import random
+import numpy as np
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -41,8 +42,6 @@ def increase_image_channels(images, num_out_channels, device):
             temp[:, i, :, :] = image_mean
     
     return temp.to(device)
-
-
 
 class aug_net_block(nn.Module):
 

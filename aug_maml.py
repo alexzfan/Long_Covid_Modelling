@@ -16,7 +16,7 @@ import meta_util
 import sys
 import random
 
-AUG_NET_DIM = 30000
+AUG_NET_DIM = 500
 INNER_NET_DIM = 500
 KERNEL_SIZE = 3
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'

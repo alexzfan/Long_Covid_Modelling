@@ -50,7 +50,7 @@ class LongCovidMetaDataset(dataset.Dataset):
                 os.remove(os.path.join(self._BASE_PATH, "minmax.joblib"))
             
             # do pca
-            self.pca = PCA()  
+            self.pca = PCA(38)  
             self.X = pd.DataFrame(self.pca.fit_transform(self._data.iloc[:,:-1]))
             self._data = pd.concat([self.X, self._data.iloc[:, -1]], axis = 1)
             

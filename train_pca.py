@@ -88,14 +88,12 @@ def main(args):
         train_loader = data.DataLoader(train_dataset,
                                     batch_size=args.batch_size,
                                     shuffle=True,
-                                    num_workers=args.num_workers,
-                                    collate_fn=collate_fn)
+                                    num_workers=args.num_workers)
         dev_dataset = LongCovidPCADataset(args.val_explicit_eval_file)
         dev_loader = data.DataLoader(dev_dataset,
                                     batch_size=args.batch_size,
                                     shuffle=False,
-                                    num_workers=args.num_workers,
-                                    collate_fn=collate_fn)
+                                    num_workers=args.num_workers)
     else:
         raise Exception("Dataset provided not valid")
     # Start training

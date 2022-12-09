@@ -99,7 +99,7 @@ def main(args):
     # Start training
     log.info("Training...")
     steps_till_eval = args.eval_steps
-    epoch = step // int(len(dataset) * (0.8))
+    epoch = step // int(len(train_dataset) * (0.8))
 
     while epoch != args.num_epochs:
         epoch += 1

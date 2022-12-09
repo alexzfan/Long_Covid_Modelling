@@ -113,8 +113,8 @@ class LongCovidPCADataset(data.Dataset):
             self.scaler = load(os.path.join(self._BASE_PATH, "minmax_non_meta.joblib"))
             self._data.iloc[:, :-1] = self.scaler.transform(self._data.iloc[:, :-1])
 
-        self.X = self.data.reset_index(drop = True).to_numpy()[:,:-1]
-        self.y = self.data.reset_index(drop = True).to_numpy()[:,-1]
+        self.X = self._data.reset_index(drop = True).to_numpy()[:,:-1]
+        self.y = self._data.reset_index(drop = True).to_numpy()[:,-1]
 
     def __getitem__(self, index):
 

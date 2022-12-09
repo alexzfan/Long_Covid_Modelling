@@ -364,7 +364,7 @@ def main(args):
     print(f'log_dir: {log_dir}')
     writer = tensorboard.SummaryWriter(log_dir=log_dir)
 
-    num_input_channels = 23074
+    num_input_channels = 39
 
     maml = MAML(
         num_input_channels,

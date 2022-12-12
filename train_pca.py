@@ -48,7 +48,7 @@ def main(args):
     # Get Model
     log.info("Making model....")
     if(args.model_type == "baseline"):
-        model = ff_pca(hidden_size=args.hidden_size)
+        model = ff_pca(hidden_size=args.hidden_size, drop_prob = args.drop_prob)
     else:
         raise Exception("Model provided not valid")
 

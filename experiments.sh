@@ -9,7 +9,7 @@ do
         do
             for hidden_size in 25 50 100
             do
-            python train.py --lr $lr --l2_wd $l2_wd --drop_prob $dropout_prob --hidden_size $hidden_size --save_dir ./save/experiments/base_ff.lr-${lr}.l2_wd-${l2_wd}.drop_prob-${dropout_prob}.hidden-${hidden_size}
+            python train.py --lr $lr --l2_wd $l2_wd --drop_prob $dropout_prob --hidden_size $hidden_size -n base_ff.lr-${lr}.l2_wd-${l2_wd}.drop_prob-${dropout_prob}.hidden-${hidden_size}
             done
         done
     done

@@ -9,8 +9,8 @@ do
         do
             for hidden_size in 25 50 100
             do
-            python train_pca.py --lr $lr --l2_wd $l2_wd --drop_prob $dropout_prob --hidden_size $hidden_size -n pca_ff.lr-${lr}.l2_wd-${l2_wd}.drop_prob-${dropout_prob}.hidden-${hidden_size} --num_epochs 50
-            python train.py --lr $lr --l2_wd $l2_wd --drop_prob $dropout_prob --hidden_size $hidden_size -n base_ff.lr-${lr}.l2_wd-${l2_wd}.drop_prob-${dropout_prob}.hidden-${hidden_size} --num_epochs 50
+            python train_pca.py --lr $lr --l2_wd $l2_wd --drop_prob $dropout_prob --hidden_size $hidden_size -n pca_ff_50_epoch.lr-${lr}.l2_wd-${l2_wd}.drop_prob-${dropout_prob}.hidden-${hidden_size} --num_epochs 50
+            python train.py --lr $lr --l2_wd $l2_wd --drop_prob $dropout_prob --hidden_size $hidden_size -n base_ff_50_epoch.lr-${lr}.l2_wd-${l2_wd}.drop_prob-${dropout_prob}.hidden-${hidden_size} --num_epochs 50
             done
         done
     done

@@ -135,7 +135,7 @@ def main(args):
             for x, y in train_loader:
                 # forward pass here
                 x = x.float().to(device)
-                x = torch.cat([x for _ in range(args.num_augs)], dim = 0)
+                x_augs = torch.cat([x for _ in range(args.num_augs-1)], dim = 0)
                 y = torch.cat([y for _ in range(args.num_augs)], dim = 0)
 
                 batch_size = args.batch_size
@@ -143,12 +143,14 @@ def main(args):
 
                 for i, block in enumerate(aug_net):
                     if i == 0 or i == (len(aug_net)-1):
-                        x = block(x)
+                        x_augs = block(x_augs)
                     else:
                         if random.uniform(0,1) < args.aug_noise_prob:
                             continue
                         else:
-                            x = block(x)
+                            x_augs = block(x_augs)
+                x_augs = torch.cat([x, x_augs], dim = 0)
+
                 if(args.model_type == "baseline"):
                     score = model(x)
                 else:

@@ -16,7 +16,7 @@ import meta_util
 
 from args import get_train_args
 from models import baseline_ff
-from util import LongCovidDataset
+from util import LongCovidPCADataset
 from collections import OrderedDict
 from sklearn import metrics
 from tensorboardX import SummaryWriter

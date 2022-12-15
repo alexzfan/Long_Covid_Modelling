@@ -145,7 +145,7 @@ def main(args):
                     if i == 0 or i == (len(aug_net)-1):
                         x = block(x)
                     else:
-                        if random.uniform(0,1) < self._aug_noise_prob:
+                        if random.uniform(0,1) < args.aug_noise_prob:
                             continue
                         else:
                             x = block(x)

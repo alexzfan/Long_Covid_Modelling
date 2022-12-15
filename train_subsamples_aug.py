@@ -160,17 +160,9 @@ def main(args):
                 y = y.float().to(device)
 
                 # weight the BCE
-                weights = train_dataset.class_weights
-                weights=torch.tensor(weights,dtype=torch.float).to(device)
-                criterion = nn.BCEWithLogitsLoss(reduction= 'none')
+                criterion = nn.BCEWithLogitsLoss()
 
                 loss = criterion(score, y.unsqueeze(1))
-                for i in range(len(loss)):
-                    if y[i] == 0:
-                        loss[i] *= weights[1]
-                    else:
-                        loss[i] *= weights[0]
-                loss = torch.mean(loss)
                 loss_val = loss.item()
 
                 # backward pass here

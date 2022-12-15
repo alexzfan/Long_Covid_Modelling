@@ -101,18 +101,19 @@ def main(args):
     while epoch != args.num_epochs:
         epoch += 1
         log.info(f'Starting epoch {epoch}....')
+        indices_to_sample = np.random.default_rng().choice(
+            range(len(train_dataset)),
+            size=args.num_samples,
+            replace=False
+        )
+        train_loader = data.DataLoader(train_dataset,
+                                batch_size=args.batch_size,
+                                num_workers=args.num_workers,
+                                sampler = data.SubsetRandomSampler(indices_to_sample))
         with torch.enable_grad(), \
             tqdm(total=len(train_loader.dataset)) as progress_bar:
 
-            indices_to_sample = np.random.default_rng().choice(
-                range(len(train_dataset)),
-                size=args.num_samples,
-                replace=False
-            )
-            train_loader = data.DataLoader(train_dataset,
-                                    batch_size=args.batch_size,
-                                    num_workers=args.num_workers,
-                                    sampler = data.SubsetRandomSampler(indices_to_sample))
+
             for x, y in train_loader:
                 # forward pass here
                 x = x.float().to(device)

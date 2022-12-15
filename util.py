@@ -30,22 +30,39 @@ class LongCovidDataset(data.Dataset):
     """
     preprocess long covid dataset
     """
+    _BASE_PATH = "./data"
     def __init__(
         self,
         csv_path,
         balance=False,
     ):
-        self.data = pd.read_csv(csv_path)
+        self._data = pd.read_csv(csv_path)
         if balance:
-            neg = self.data[self.data.LongCovid.eq(0)]
-            pos = self.data[self.data.LongCovid.eq(1)]
-            self.data = pd.concat([neg.sample(pos.shape[0]), pos])
+            neg = self._data[self._data.LongCovid.eq(0)]
+            pos = self._data[self._data.LongCovid.eq(1)]
+            self._data = pd.concat([neg.sample(pos.shape[0]), pos])
 
-        self.X = self.data.reset_index(drop = True).to_numpy()[:,:-1]
-        self.X = normalize(self.X, axis = 0)
-        self.y = self.data.reset_index(drop = True).to_numpy()[:,-1]
+        if csv_path == "./data/proteins_longcovid_target_metatrain.csv": 
 
-        self.transform = transforms.Compose([transforms.ToTensor()])
+            if os.path.exists(os.path.join(self._BASE_PATH, "minmax_non_meta_normal.joblib")):
+                os.remove(os.path.join(self._BASE_PATH, "minmax_non_meta_normal.joblib"))
+            
+            # scale
+            self.scaler = MinMaxScaler()
+            self._data.iloc[:, :-1] = self.scaler.fit_transform(self._data.iloc[:, :-1])
+
+            # save all the params
+            dump(self.scaler, os.path.join(self._BASE_PATH, "minmax_non_meta_normal.joblib"))
+        else:
+            # val/test data
+            if not os.path.exists(os.path.join(self._BASE_PATH, "minmax_non_meta_normal.joblib")):
+                raise Exception("No minmax joblib")
+
+            self.scaler = load(os.path.join(self._BASE_PATH, "minmax_non_meta_normal.joblib"))
+            self._data.iloc[:, :-1] = self.scaler.transform(self._data.iloc[:, :-1])
+
+        self.X = self._data.reset_index(drop = True).to_numpy()[:,:-1]
+        self.y = self._data.reset_index(drop = True).to_numpy()[:,-1]
 
         self.class_weights = compute_class_weight(class_weight='balanced', classes= np.unique(self.y), y= self.y)
 

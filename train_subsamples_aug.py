@@ -114,7 +114,7 @@ def main(args):
             replace=False
         ).tolist()
         print(pos_indices_to_sample)
-        indices_to_sample = pos_indices_to_sample.extend(neg_indices_to_sample)
+        indices_to_sample = pos_indices_to_sample + neg_indices_to_sample
         print(indices_to_sample)
         train_loader = data.DataLoader(train_dataset,
                                 batch_size=args.batch_size,

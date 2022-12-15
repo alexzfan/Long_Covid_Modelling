@@ -13,6 +13,7 @@ import string
 import torch
 import torch.nn.functional as F
 import torch.utils.data as data
+import torch.utils.data.Sampler as Sampler
 import tqdm
 import numpy as np
 import pandas as pd
@@ -20,6 +21,7 @@ import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import normalize, MinMaxScaler
 from sklearn.decomposition import PCA
+from sklearn.utils.class_weight import compute_class_weight
 from joblib import dump, load
 
 from collections import Counter
@@ -45,6 +47,8 @@ class LongCovidDataset(data.Dataset):
         self.y = self.data.reset_index(drop = True).to_numpy()[:,-1]
 
         self.transform = transforms.Compose([transforms.ToTensor()])
+
+        self.class_weights = compute_class_weight(class_weight='balanced', classes= np.unique(self.y), y= self.y)
 
     def __getitem__(self, index):
 

@@ -26,6 +26,10 @@ def get_train_args():
                         type=int,
                         default=30,
                         help='Number of epochs for which to train. Negative means forever.')
+    parser.add_argument('--num_samples',
+                        type=int,
+                        default=2,
+                        help='Number of samples to randomly subset sample')
     parser.add_argument('--drop_prob',
                         type=float,
                         default=0.2,
@@ -121,7 +125,7 @@ def add_train_test_args(parser):
 
 def get_test_args():
     """Get arguments needed in test.py."""
-    parser = argparse.ArgumentParser('Test a trained model on SQuAD')
+    parser = argparse.ArgumentParser('Test a trained model on Long Covid Datasets')
 
     add_common_args(parser)
     add_train_test_args(parser)
@@ -138,7 +142,7 @@ def get_test_args():
     parser.add_argument('--model_type',
                         type=str,
                         default = "baseline",
-                        choices=("baseline", "visualbert", "visualbert_fairface"),
+                        choices=("baseline"),
                         help='Model choice for training')
     parser.add_argument('--ensemble_list',
                         type=str,

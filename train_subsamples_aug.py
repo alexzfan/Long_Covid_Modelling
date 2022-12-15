@@ -107,12 +107,13 @@ def main(args):
             pos_indices,
             size=args.num_samples,
             replace=False
-        )
+        ).tolist()
         neg_indices_to_sample = np.random.default_rng().choice(
             neg_indices,
             size=args.num_samples,
             replace=False
-        )
+        ).tolist()
+        print(pos_indices_to_sample)
         indices_to_sample = pos_indices_to_sample.extend(neg_indices_to_sample)
         print(indices_to_sample)
         train_loader = data.DataLoader(train_dataset,

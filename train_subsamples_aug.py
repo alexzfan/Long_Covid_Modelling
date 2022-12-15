@@ -149,7 +149,7 @@ def main(args):
                             continue
                         else:
                             x_augs = block(x_augs)
-                x_augs = torch.cat([x, x_augs], dim = 0)
+                x = torch.cat([x, x_augs], dim = 0)
 
                 if(args.model_type == "baseline"):
                     score = model(x)

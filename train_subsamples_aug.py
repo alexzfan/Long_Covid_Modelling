@@ -97,8 +97,8 @@ def main(args):
     log.info("Training...")
     steps_till_eval = args.eval_steps
     epoch = step // int(len(train_dataset))
-    pos_indices = np.where(train_dataset.y == 1)
-    neg_indices = np.where(train_dataset.y == 0)
+    pos_indices = np.where(train_dataset.y == 1)[0]
+    neg_indices = np.where(train_dataset.y == 0)[0]
 
     while epoch != args.num_epochs:
         epoch += 1

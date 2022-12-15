@@ -15,7 +15,7 @@ import util
 import meta_util
 
 from args import get_train_args
-from models import baseline_ff
+from models import ff_pca
 from util import LongCovidPCADataset
 from collections import OrderedDict
 from sklearn import metrics
@@ -58,7 +58,7 @@ def main(args):
                 aug_net.append(meta_util.aug_net_block(in_channel, args.hidden_size, args.aug_noise_prob, args.num_augs))
                 in_channel = args.hidden_size
         aug_net.to(device)
-        model = baseline_ff(hidden_size=args.hidden_size, drop_prob = args.drop_prob)
+        model = ff_pca(hidden_size=args.hidden_size, drop_prob = args.drop_prob)
     else:
         raise Exception("Model provided not valid")
 

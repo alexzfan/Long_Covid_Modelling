@@ -12,6 +12,7 @@ import torch.optim.lr_scheduler as sched
 import torch.utils.data as data
 from torch.utils.data.sampler import SubsetRandomSampler
 import util
+import meta_util
 
 from args import get_train_args
 from models import baseline_ff
@@ -48,6 +49,15 @@ def main(args):
     # Get Model
     log.info("Making model....")
     if(args.model_type == "baseline"):
+        aug_net = nn.ModuleList()
+        in_channel = num_input_channels = 38
+        for i in range(args.aug_net_size):
+            if i == args.aug_net_size -1:
+                self.aug_net.append(meta_util.aug_net_block(in_channel, num_input_channels, args.aug_noise_prob, args.num_augs))
+            else:
+                self.aug_net.append(meta_util.aug_net_block(in_channel, args.hidden_size, args.aug_noise_prob, args.num_augs))
+                in_channel = args.hidden_size
+        aug_net.to(device)
         model = baseline_ff(hidden_size=args.hidden_size, drop_prob = args.drop_prob)
     else:
         raise Exception("Model provided not valid")
@@ -72,7 +82,7 @@ def main(args):
                                  metric_name = args.metric_name,
                                  maximize_metric = args.maximize_metric,
                                  log = log)
-    optimizer = optim.Adam(model.parameters(),
+    optimizer = optim.Adam(list(model.parameters()) + list(aug_net.parameters()),
                             lr = args.lr,
                             betas = (0.9, 0.999),
                             eps = 1e-7,
@@ -84,9 +94,9 @@ def main(args):
     # load in data
     log.info("Building dataset....")
     if(args.model_type == "baseline"):
-        train_dataset = LongCovidDataset(args.train_explicit_eval_file)
+        train_dataset = LongCovidPCADataset(args.train_explicit_eval_file)
 
-        dev_dataset = LongCovidDataset(args.val_explicit_eval_file)
+        dev_dataset = LongCovidPCADataset(args.val_explicit_eval_file)
         dev_loader = data.DataLoader(dev_dataset,
                                     batch_size=args.batch_size,
                                     shuffle=False,
@@ -113,9 +123,7 @@ def main(args):
             size=args.num_samples,
             replace=False
         ).tolist()
-        print(pos_indices_to_sample)
         indices_to_sample = pos_indices_to_sample + neg_indices_to_sample
-        print(indices_to_sample)
         train_loader = data.DataLoader(train_dataset,
                                 batch_size=args.batch_size,
                                 num_workers=args.num_workers,
@@ -127,10 +135,20 @@ def main(args):
             for x, y in train_loader:
                 # forward pass here
                 x = x.float().to(device)
+                x = torch.cat([x for _ in range(args.num_augs)], dim = 0)
+                y = torch.cat([y for _ in range(args.num_augs)], dim = 0)
 
                 batch_size = args.batch_size
                 optimizer.zero_grad()
 
+                for i, block in enumerate(aug_net):
+                    if i == 0 or i == (len(aug_net)-1):
+                        x = block(x)
+                    else:
+                        if random.uniform(0,1) < self._aug_noise_prob:
+                            continue
+                        else:
+                            x = block(x)
                 if(args.model_type == "baseline"):
                     score = model(x)
                 else:

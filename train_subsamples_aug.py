@@ -103,18 +103,18 @@ def main(args):
     while epoch != args.num_epochs:
         epoch += 1
         log.info(f'Starting epoch {epoch}....')
-        print(pos_indices)
         pos_indices_to_sample = np.random.default_rng().choice(
             pos_indices,
             size=args.num_samples,
             replace=False
-        ).tolist()
+        )
         neg_indices_to_sample = np.random.default_rng().choice(
             neg_indices,
             size=args.num_samples,
             replace=False
-        ).tolist()
+        )
         indices_to_sample = pos_indices_to_sample.extend(neg_indices_to_sample)
+        print(indices_to_sample)
         train_loader = data.DataLoader(train_dataset,
                                 batch_size=args.batch_size,
                                 num_workers=args.num_workers,

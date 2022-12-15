@@ -13,7 +13,6 @@ import string
 import torch
 import torch.nn.functional as F
 import torch.utils.data as data
-import torch.utils.data.Sampler as Sampler
 import tqdm
 import numpy as np
 import pandas as pd

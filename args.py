@@ -30,6 +30,19 @@ def get_train_args():
                         type=int,
                         default=2,
                         help='Number of samples to randomly subset sample')
+    parser.add_argument('--num_augs',
+                        type=int,
+                        default=5,
+                        help='Number of augs to make')
+    parser.add_argument('--aug_net_size',
+                        type=int,
+                        default=5,
+                        help='Num blocks in augmentation network')
+    parser.add_argument('--aug_noise_prob',
+                        type=float,
+                        default=0.2,
+                        help='Stochasticity Prob, tied to both dropping inner aug blocks and adding noise')
+                     
     parser.add_argument('--drop_prob',
                         type=float,
                         default=0.2,

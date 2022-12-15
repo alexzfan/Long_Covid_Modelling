@@ -135,6 +135,7 @@ class LongCovidPCADataset(data.Dataset):
 
         self.X = self._data.reset_index(drop = True).to_numpy()[:,:-1]
         self.y = self._data.reset_index(drop = True).to_numpy()[:,-1]
+        self.class_weights = compute_class_weight(class_weight='balanced', classes= np.unique(self.y), y= self.y)
 
     def __getitem__(self, index):
 

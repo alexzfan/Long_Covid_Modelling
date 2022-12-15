@@ -53,9 +53,9 @@ def main(args):
         in_channel = num_input_channels = 38
         for i in range(args.aug_net_size):
             if i == args.aug_net_size -1:
-                aug_net.append(meta_util.aug_net_block(in_channel, num_input_channels, args.aug_noise_prob, args.num_augs))
+                aug_net.append(meta_util.aug_net_block(in_channel, num_input_channels, args.aug_noise_prob, args.num_augs-1))
             else:
-                aug_net.append(meta_util.aug_net_block(in_channel, args.hidden_size, args.aug_noise_prob, args.num_augs))
+                aug_net.append(meta_util.aug_net_block(in_channel, args.hidden_size, args.aug_noise_prob, args.num_augs-1))
                 in_channel = args.hidden_size
         aug_net.to(device)
         model = ff_pca(hidden_size=args.hidden_size, drop_prob = args.drop_prob)

@@ -103,6 +103,7 @@ def main(args):
     while epoch != args.num_epochs:
         epoch += 1
         log.info(f'Starting epoch {epoch}....')
+        print(pos_indices)
         pos_indices_to_sample = np.random.default_rng().choice(
             pos_indices,
             size=args.num_samples,

@@ -16,7 +16,8 @@ import meta_util
 import sys
 import random
 
-NUM_HIDDEN_CHANNELS = 64
+AUG_NET_DIM = 500
+INNER_NET_DIM = 500
 KERNEL_SIZE = 3
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 SUMMARY_INTERVAL = 10
@@ -77,33 +78,30 @@ class MAML:
         self._aug_noise_prob = aug_noise_prob
         self._num_augs = num_augs
 
-        self._aug_net = nn.Sequential()
+        self._aug_net = nn.ModuleList()
         in_channel = self.num_input_channels
         for i in range(self._aug_net_size):
             if i == self._aug_net_size - 1:
-                self._aug_net.append(meta_util.aug_net_block(in_channel, self.num_input_channels, KERNEL_SIZE, self._aug_noise_prob, self._num_augs))
+                self._aug_net.append(meta_util.aug_net_block(in_channel, self.num_input_channels, self._aug_noise_prob, self._num_augs))
             else:
-                self._aug_net.append(meta_util.aug_net_block(in_channel, NUM_HIDDEN_CHANNELS, KERNEL_SIZE, self._aug_noise_prob, self._num_augs))
-                in_channel = NUM_HIDDEN_CHANNELS
+                self._aug_net.append(meta_util.aug_net_block(in_channel, AUG_NET_DIM, self._aug_noise_prob, self._num_augs))
+                in_channel = AUG_NET_DIM
         self._aug_net = self._aug_net.to(DEVICE)
 
 
         # make inner model
 
         self._inner_net = nn.Sequential(
-            nn.Conv1d(self.num_input_channels, 64, 3),
-            nn.BatchNorm1d(64, momentum=1, affine=True),
+            nn.Linear(self.num_input_channels, INNER_NET_DIM),
+            nn.Dropout(0.5),
             nn.ReLU(inplace=True),
-            nn.MaxPool1d(2),
-            nn.Conv1d(64, 64, 3),
-            nn.BatchNorm1d(64, momentum=1, affine=True),
+            nn.Linear(INNER_NET_DIM, INNER_NET_DIM),
+            nn.Dropout(0.5),
             nn.ReLU(inplace=True),
-            nn.MaxPool1d(2),
-            nn.Conv1d(64, 64, 3),
-            nn.BatchNorm1d(64, momentum=1, affine=True),
+            nn.Linear(INNER_NET_DIM, INNER_NET_DIM),
+            nn.Dropout(0.5),
             nn.ReLU(inplace=True),
-            meta_util.mean_pool_along_channel(),
-            nn.Linear(64, num_outputs)
+            nn.Linear(INNER_NET_DIM, num_outputs)
         ).to(DEVICE)
             
         self._num_inner_steps = num_inner_steps
@@ -152,8 +150,14 @@ class MAML:
             support_augs = torch.cat([x_support for _ in range(self._num_augs)], dim = 0)
             labels_augs = torch.cat([y_support for _ in range(self._num_augs)], dim = 0)
 
-            support_augs = torch.unsqueeze(support_augs, 1)
-            support_augs = self._aug_net(support_augs)
+            for i, block in enumerate(self._aug_net):
+                if i == 0 or i == (len(self._aug_net)-1):
+                    support_augs = block(support_augs)
+                else:
+                    if random.uniform(0,1) < self._aug_noise_prob:
+                        continue
+                    else:
+                        support_augs = block(support_augs)
             
             # use higher
             inner_opt = torch.optim.SGD(self._inner_net.parameters(), lr=1e-1)
@@ -175,7 +179,6 @@ class MAML:
                 accuracies_support_batch.append(support_accs)
 
                 # query time
-                x_query = torch.unsqueeze(x_query, 1)
                 qry_logits = fnet(x_query)
                 qry_loss = F.cross_entropy(qry_logits, y_query)
                 accuracy_query_batch.append(meta_util.score(qry_logits, y_query))
@@ -366,7 +369,7 @@ def main(args):
     print(f'log_dir: {log_dir}')
     writer = tensorboard.SummaryWriter(log_dir=log_dir)
 
-    num_input_channels = 1
+    num_input_channels = 38
 
     maml = MAML(
         num_input_channels,

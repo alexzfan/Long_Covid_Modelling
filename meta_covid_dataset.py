@@ -6,7 +6,10 @@ import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import dataset, sampler, dataloader
-from sklearn.preprocessing import normalize
+from sklearn.preprocessing import normalize, MinMaxScaler
+import meta_util
+from sklearn.decomposition import PCA
+from joblib import dump, load
 NUM_TRAIN_CLASSES = 1100
 NUM_VAL_CLASSES = 100
 NUM_TEST_CLASSES = 423
@@ -38,8 +41,43 @@ class LongCovidMetaDataset(dataset.Dataset):
             assert("./data not available")
 
         self._data = pd.read_csv(os.path.join(self._BASE_PATH, data_filename))
+        
+        if data_filename == "proteins_longcovid_target_metatrain.csv": 
+            if os.path.exists(os.path.join(self._BASE_PATH, "pca.joblib")):
+                os.remove(os.path.join(self._BASE_PATH, "pca.joblib"))
 
-        self._data.iloc[:, :-1] = normalize(self._data.iloc[:,:-1], axis = 0, norm = 'l2')
+            if os.path.exists(os.path.join(self._BASE_PATH, "minmax.joblib")):
+                os.remove(os.path.join(self._BASE_PATH, "minmax.joblib"))
+            
+            # do pca
+            self.pca = PCA(38)  
+            self.X = pd.DataFrame(self.pca.fit_transform(self._data.iloc[:,:-1]))
+            self._data = pd.concat([self.X, self._data.iloc[:, -1]], axis = 1)
+            
+
+            # scale
+            self.scaler = MinMaxScaler()
+            self._data.iloc[:, :-1] = self.scaler.fit_transform(self._data.iloc[:, :-1])
+
+            # save all the params
+            dump(self.pca, os.path.join(self._BASE_PATH, "pca.joblib"))
+            dump(self.scaler, os.path.join(self._BASE_PATH, "minmax.joblib"))
+        else:
+            # val/test data
+            if not os.path.exists(os.path.join(self._BASE_PATH, "pca.joblib")):
+                raise Exception("No PCA joblib")
+
+            if not os.path.exists(os.path.join(self._BASE_PATH, "minmax.joblib")):
+                raise Exception("No minmax joblib")
+
+            self.pca = load(os.path.join(self._BASE_PATH, "pca.joblib"))
+            self.X = pd.DataFrame(self.pca.transform(self._data.iloc[:, :-1]))
+            self._data = pd.concat([self.X, self._data.iloc[:, -1]], axis = 1)
+
+            self.scaler = load(os.path.join(self._BASE_PATH, "minmax.joblib"))
+            self._data.iloc[:, :-1] = self.scaler.transform(self._data.iloc[:, :-1])
+            
+
 
         # check problem arguments
         assert num_support + num_query <= NUM_SAMPLES_PER_CLASS

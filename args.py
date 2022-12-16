@@ -26,6 +26,23 @@ def get_train_args():
                         type=int,
                         default=30,
                         help='Number of epochs for which to train. Negative means forever.')
+    parser.add_argument('--num_samples',
+                        type=int,
+                        default=2,
+                        help='Number of samples to randomly subset sample')
+    parser.add_argument('--num_augs',
+                        type=int,
+                        default=5,
+                        help='Number of augs to make')
+    parser.add_argument('--aug_net_size',
+                        type=int,
+                        default=5,
+                        help='Num blocks in augmentation network')
+    parser.add_argument('--aug_noise_prob',
+                        type=float,
+                        default=0.2,
+                        help='Stochasticity Prob, tied to both dropping inner aug blocks and adding noise')
+                     
     parser.add_argument('--drop_prob',
                         type=float,
                         default=0.2,
@@ -79,6 +96,12 @@ def add_common_args(parser):
     parser.add_argument('--train_eval_file',
                         type=str,
                         default='./data/proteins_longcovid_target_train.csv')
+    parser.add_argument('--train_explicit_eval_file',
+                        type=str,
+                        default='./data/proteins_longcovid_target_metatrain.csv')
+    parser.add_argument('--val_explicit_eval_file',
+                        type=str,
+                        default='./data/proteins_longcovid_target_metaval.csv')
     parser.add_argument('--test_eval_file',
                         type=str,
                         default='./data/proteins_longcovid_target_test.csv')
@@ -115,7 +138,7 @@ def add_train_test_args(parser):
 
 def get_test_args():
     """Get arguments needed in test.py."""
-    parser = argparse.ArgumentParser('Test a trained model on SQuAD')
+    parser = argparse.ArgumentParser('Test a trained model on Long Covid Datasets')
 
     add_common_args(parser)
     add_train_test_args(parser)
@@ -132,7 +155,7 @@ def get_test_args():
     parser.add_argument('--model_type',
                         type=str,
                         default = "baseline",
-                        choices=("baseline", "visualbert", "visualbert_fairface"),
+                        choices=("baseline"),
                         help='Model choice for training')
     parser.add_argument('--ensemble_list',
                         type=str,

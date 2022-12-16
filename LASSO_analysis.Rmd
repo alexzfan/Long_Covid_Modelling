@@ -1,0 +1,84 @@
+---
+title: "LASSO_analysis"
+author: "Alex Fan"
+date: "November 18, 2022"
+output: pdf_document
+  keep_md: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(glmnet)
+library(pROC)
+```
+
+
+```{r}
+data_folder = "./data/"
+train = read.csv(paste(data_folder, "proteins_longcovid_target_train.csv", sep = ""))
+test = read.csv(paste(data_folder, "proteins_longcovid_target_test.csv", sep = ""))
+```
+
+```{r}
+# upsample manually
+indices_to_sample = which(train$LongCovid == 0)
+sampled_indices = sample(indices_to_sample, length(which(train$LongCovid == 1)), replace = TRUE)
+
+train = rbind(train[sampled_indices, ], train[which(train$LongCovid == 1),])
+train$LongCovid
+```
+
+```{r}
+train = train[sample(nrow(train)),]
+```
+
+
+```{r}
+cvfit = cv.glmnet(as.matrix(train[,-ncol(train)]), as.matrix(train[,ncol(train)]), family = 'binomial', nfolds = nrow(train), type.measure = "deviance", standardize = TRUE)
+png('./images/lasso_cv.png')
+plot(cvfit)
+dev.off()
+```
+
+```{r}
+coef_indices = which(as.matrix(coef(cvfit, s = "lambda.1se")) != 0)
+coef(cvfit, s='lambda.1se')[coef_indices,]
+```
+
+
+```{r}
+fit = glmnet(as.matrix(train[,-ncol(train)]), as.matrix(train[,ncol(train)]), family = 'binomial', standardize = TRUE)
+pred_classes_y = predict(fit, newx = as.matrix(test[,-ncol(test)]), type = 'class', s  = c(cvfit$lambda.min, cvfit$lambda.1se))
+pred_probs_y = predict(fit, newx = as.matrix(test[,-ncol(test)]), type = 'response', s  = c(cvfit$lambda.min, cvfit$lambda.1se))
+cbind(pred_classes_y, test[,ncol(test)])
+```
+
+```{r}
+i = 2
+roc_full_resolution <- roc(test[,ncol(test)], pred_probs_y[,i])
+rounded_scores <- round( pred_probs_y[,i], digits=1)
+roc_rounded <- roc(test[,ncol(test)], rounded_scores)
+plot(roc_full_resolution, print.auc=TRUE)
+lines(roc_rounded, col="red", type='b')
+text(0.4, 0.43, labels=sprintf("AUC: %0.3f", auc(roc_rounded)), col="red")
+```
+
+```{r}
+# calculate accuracies
+acc_min = sum(pred_classes_y[,1] == test[,ncol(test)])/nrow(pred_classes_y)
+acc_1se = sum(pred_classes_y[,2] == test[,ncol(test)])/nrow(pred_classes_y)
+
+print(paste("Acc at lambda.min", acc_min))
+print(paste("Acc at lambda.1se", acc_1se))
+```
+
+```{r}
+# make confusion matrix
+library(caret)
+conf_mat_1se <- confusionMatrix(data= as.factor(pred_classes_y[,2]), reference = as.factor(test[,ncol(test)]))
+conf_mat_1se
+```
+

@@ -85,10 +85,7 @@ def main(args):
     log.info("Building dataset....")
     if(args.model_type == "baseline"):
         train_dataset = LongCovidDataset(args.train_explicit_eval_file)
-        train_loader = data.DataLoader(train_dataset,
-                                    batch_size=args.batch_size,
-                                    shuffle=True,
-                                    num_workers=args.num_workers)
+
         dev_dataset = LongCovidDataset(args.val_explicit_eval_file)
         dev_loader = data.DataLoader(dev_dataset,
                                     batch_size=args.batch_size,
@@ -99,13 +96,24 @@ def main(args):
     # Start training
     log.info("Training...")
     steps_till_eval = args.eval_steps
-    epoch = step // int(len(train_dataset) * (0.8))
+    epoch = step // int(len(train_dataset))
 
     while epoch != args.num_epochs:
         epoch += 1
         log.info(f'Starting epoch {epoch}....')
+        indices_to_sample = np.random.default_rng().choice(
+            range(len(train_dataset)),
+            size=args.num_samples,
+            replace=False
+        )
+        train_loader = data.DataLoader(train_dataset,
+                                batch_size=args.batch_size,
+                                num_workers=args.num_workers,
+                                sampler = data.SubsetRandomSampler(indices_to_sample))
         with torch.enable_grad(), \
             tqdm(total=len(train_loader.dataset)) as progress_bar:
+
+
             for x, y in train_loader:
                 # forward pass here
                 x = x.float().to(device)
@@ -122,7 +130,7 @@ def main(args):
                 y = y.float().to(device)
 
                 # weight the BCE
-                weights = compute_class_weight(class_weight='balanced', classes= np.unique(y.cpu()), y= y.cpu().numpy())
+                weights = train_dataset.class_weights
                 weights=torch.tensor(weights,dtype=torch.float).to(device)
                 criterion = nn.BCEWithLogitsLoss(reduction= 'none')
 

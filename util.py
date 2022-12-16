@@ -18,7 +18,10 @@ import numpy as np
 import pandas as pd
 import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import normalize
+from sklearn.preprocessing import normalize, MinMaxScaler
+from sklearn.decomposition import PCA
+from sklearn.utils.class_weight import compute_class_weight
+from joblib import dump, load
 
 from collections import Counter
 
@@ -27,22 +30,41 @@ class LongCovidDataset(data.Dataset):
     """
     preprocess long covid dataset
     """
+    _BASE_PATH = "./data"
     def __init__(
         self,
         csv_path,
         balance=False,
     ):
-        self.data = pd.read_csv(csv_path)
+        self._data = pd.read_csv(csv_path)
         if balance:
-            neg = self.data[self.data.LongCovid.eq(0)]
-            pos = self.data[self.data.LongCovid.eq(1)]
-            self.data = pd.concat([neg.sample(pos.shape[0]), pos])
+            neg = self._data[self._data.LongCovid.eq(0)]
+            pos = self._data[self._data.LongCovid.eq(1)]
+            self._data = pd.concat([neg.sample(pos.shape[0]), pos])
 
-        self.X = self.data.reset_index(drop = True).to_numpy()[:,:-1]
-        self.X = normalize(self.X, axis = 0)
-        self.y = self.data.reset_index(drop = True).to_numpy()[:,-1]
+        if csv_path == "./data/proteins_longcovid_target_metatrain.csv": 
 
-        self.transform = transforms.Compose([transforms.ToTensor()])
+            if os.path.exists(os.path.join(self._BASE_PATH, "minmax_non_meta_normal.joblib")):
+                os.remove(os.path.join(self._BASE_PATH, "minmax_non_meta_normal.joblib"))
+            
+            # scale
+            self.scaler = MinMaxScaler()
+            self._data.iloc[:, :-1] = self.scaler.fit_transform(self._data.iloc[:, :-1])
+
+            # save all the params
+            dump(self.scaler, os.path.join(self._BASE_PATH, "minmax_non_meta_normal.joblib"))
+        else:
+            # val/test data
+            if not os.path.exists(os.path.join(self._BASE_PATH, "minmax_non_meta_normal.joblib")):
+                raise Exception("No minmax joblib")
+
+            self.scaler = load(os.path.join(self._BASE_PATH, "minmax_non_meta_normal.joblib"))
+            self._data.iloc[:, :-1] = self.scaler.transform(self._data.iloc[:, :-1])
+
+        self.X = self._data.reset_index(drop = True).to_numpy()[:,:-1]
+        self.y = self._data.reset_index(drop = True).to_numpy()[:,-1]
+
+        self.class_weights = compute_class_weight(class_weight='balanced', classes= np.unique(self.y), y= self.y)
 
     def __getitem__(self, index):
 
@@ -62,7 +84,79 @@ class LongCovidDataset(data.Dataset):
 
     def __len__(self):
 
-        return len(self.data)
+        return len(self._data)
+
+class LongCovidPCADataset(data.Dataset):
+    """
+    preprocess long covid dataset
+    """
+    _BASE_PATH = "./data"
+    def __init__(
+        self,
+        csv_path,
+        balance=False,
+    ):
+        self._data = pd.read_csv(csv_path)
+
+        if csv_path == "./data/proteins_longcovid_target_metatrain.csv": 
+            if os.path.exists(os.path.join(self._BASE_PATH, "pca_non_meta.joblib")):
+                os.remove(os.path.join(self._BASE_PATH, "pca_non_meta.joblib"))
+
+            if os.path.exists(os.path.join(self._BASE_PATH, "minmax_non_meta.joblib")):
+                os.remove(os.path.join(self._BASE_PATH, "minmax_non_meta.joblib"))
+            
+            # do pca
+            self.pca = PCA(38)  
+            self.X = pd.DataFrame(self.pca.fit_transform(self._data.iloc[:,:-1]))
+            self._data = pd.concat([self.X, self._data.iloc[:, -1]], axis = 1)
+            
+
+            # scale
+            self.scaler = MinMaxScaler()
+            self._data.iloc[:, :-1] = self.scaler.fit_transform(self._data.iloc[:, :-1])
+
+            # save all the params
+            dump(self.pca, os.path.join(self._BASE_PATH, "pca_non_meta.joblib"))
+            dump(self.scaler, os.path.join(self._BASE_PATH, "minmax_non_meta.joblib"))
+        else:
+            # val/test data
+            if not os.path.exists(os.path.join(self._BASE_PATH, "pca_non_meta.joblib")):
+                raise Exception("No PCA joblib")
+
+            if not os.path.exists(os.path.join(self._BASE_PATH, "minmax_non_meta.joblib")):
+                raise Exception("No minmax joblib")
+
+            self.pca = load(os.path.join(self._BASE_PATH, "pca_non_meta.joblib"))
+            self.X = pd.DataFrame(self.pca.transform(self._data.iloc[:, :-1]))
+            self._data = pd.concat([self.X, self._data.iloc[:, -1]], axis = 1)
+
+            self.scaler = load(os.path.join(self._BASE_PATH, "minmax_non_meta.joblib"))
+            self._data.iloc[:, :-1] = self.scaler.transform(self._data.iloc[:, :-1])
+
+        self.X = self._data.reset_index(drop = True).to_numpy()[:,:-1]
+        self.y = self._data.reset_index(drop = True).to_numpy()[:,-1]
+        self.class_weights = compute_class_weight(class_weight='balanced', classes= np.unique(self.y), y= self.y)
+
+    def __getitem__(self, index):
+
+        # text
+        x = self.X[index,]
+        
+        # label 
+        y = self.y[index]
+
+        example = (
+            x,
+            y
+        )
+
+        return example
+
+
+    def __len__(self):
+
+        return len(self._data)
+
 
 class AverageMeter:
     """Keep track of average values over time.

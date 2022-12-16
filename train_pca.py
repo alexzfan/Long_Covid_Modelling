@@ -14,8 +14,8 @@ from torch.utils.data.sampler import SubsetRandomSampler
 import util
 
 from args import get_train_args
-from models import baseline_ff
-from util import LongCovidDataset
+from models import ff_pca
+from util import LongCovidPCADataset
 from collections import OrderedDict
 from sklearn import metrics
 from tensorboardX import SummaryWriter
@@ -48,7 +48,7 @@ def main(args):
     # Get Model
     log.info("Making model....")
     if(args.model_type == "baseline"):
-        model = baseline_ff(hidden_size=args.hidden_size, drop_prob = args.drop_prob)
+        model = ff_pca(hidden_size=args.hidden_size, drop_prob = args.drop_prob)
     else:
         raise Exception("Model provided not valid")
 
@@ -84,12 +84,12 @@ def main(args):
     # load in data
     log.info("Building dataset....")
     if(args.model_type == "baseline"):
-        train_dataset = LongCovidDataset(args.train_explicit_eval_file)
+        train_dataset = LongCovidPCADataset(args.train_explicit_eval_file)
         train_loader = data.DataLoader(train_dataset,
                                     batch_size=args.batch_size,
                                     shuffle=True,
                                     num_workers=args.num_workers)
-        dev_dataset = LongCovidDataset(args.val_explicit_eval_file)
+        dev_dataset = LongCovidPCADataset(args.val_explicit_eval_file)
         dev_loader = data.DataLoader(dev_dataset,
                                     batch_size=args.batch_size,
                                     shuffle=False,

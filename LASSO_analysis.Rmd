@@ -11,8 +11,15 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
+library(tidyverse)
 library(glmnet)
 library(pROC)
+library(hdm)
+```
+
+```{r}
+train_colnames = colnames(train)
+df = data.frame(colnames(train_filtered))
 ```
 
 
@@ -20,6 +27,19 @@ library(pROC)
 data_folder = "./data/"
 train = read.csv(paste(data_folder, "proteins_longcovid_target_train.csv", sep = ""))
 test = read.csv(paste(data_folder, "proteins_longcovid_target_test.csv", sep = ""))
+standout_healthy_vs_covid_IGG = read.csv(paste(data_folder, "IgG_D90_Health vs Covid.csv", sep  = ""))
+things = standout_healthy_vs_covid_IGG$selected.IgG_D90_Health_Covid
+things = str_replace(things, "NKX3-", "NKX3.")
+things = str_replace(things, "NKX2-", "NKX2.")
+
+train_filtered = train %>%
+  select(c(things, "Gender", "age", "LongCovid"))
+test_filtered = test %>%
+  select(c(things, "Gender", "age", "LongCovid"))
+
+train = train_filtered
+test = test_filtered
+
 ```
 
 ```{r}
@@ -34,6 +54,18 @@ train$LongCovid
 ```{r}
 train = train[sample(nrow(train)),]
 ```
+
+
+# Lasso regression on filtered set
+
+```{r}
+# standardie columns
+train[,c(1:ncol(train))] = scale(train[,c(1:ncol(train))])
+lasso.fit = rlassologit(LongCovid ~ ., data = train)
+```
+
+
+# CV Lasso
 
 
 ```{r}
